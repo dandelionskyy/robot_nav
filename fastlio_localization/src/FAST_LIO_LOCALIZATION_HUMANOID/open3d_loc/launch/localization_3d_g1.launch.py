@@ -4,7 +4,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import PathJoinSubstitution, LaunchConfiguration # <--- 新增导入 LaunchConfiguration
-from launch.conditions import IfCondition # <--- 新增导入 IfCondition
+from launch.conditions import IfCondition # 导入 IfCondition
 import os
 
 
@@ -61,13 +61,13 @@ def generate_launch_description():
         output='screen',
         prefix='nice',
         # ==========================================
-        # 2. 给 RViz 节点加上条件判断！
+        # 2. RViz节点加上条件判断！
         # ==========================================
         condition=IfCondition(use_rviz)  # 只有当 use_rviz 为 'true' 时，才启动这个节点
     )
 
     return LaunchDescription([
-        use_rviz_arg,      # <--- 3. 别忘了把声明的参数扔进 LaunchDescription 列表里
+        use_rviz_arg,      # <--- 3.把声明的参数扔进 LaunchDescription 列表里
         fast_lio_launch,
         open3d_loc_launch,
         rviz_node

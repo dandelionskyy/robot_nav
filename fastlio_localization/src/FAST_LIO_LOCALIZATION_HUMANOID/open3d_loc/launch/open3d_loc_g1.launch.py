@@ -35,7 +35,7 @@ def generate_launch_description():
     )
 
     # 静态TF发布节点 - imu_link to base_link
-    # 修正：父frame是imu_link，子frame是base_link
+    # 父frame是imu_link，子frame是base_link
     # static_tf_imulink2baselink = Node(
     #     package='tf2_ros',
     #     executable='static_transform_publisher',
@@ -44,7 +44,7 @@ def generate_launch_description():
     # )
 
     # 静态TF发布节点 - base_link to motion_link
-    # 修正：base_link是父frame，motion_link是子frame
+    # base_link是父frame，motion_link是子frame
     static_tf_base_center = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -139,8 +139,8 @@ def generate_launch_description():
         parameters=[{
             'target_frame': 'body', # 统一投影到地面参考系 (如果TF树报错找不到它，可暂时改为 'body' 或 'base_link' 并调整高度)
             'transform_tolerance': 0.01,
-            'min_height': -0.4,                # 最低高度：0.5米（过滤掉地面和轻微的斜坡干扰）
-            'max_height': 0.2,               # 最高高度：0.95米（正好在你雷达 0.9m 的下方，避免切到雷达支架）
+            'min_height': -0.4,                # 最低高度：-0.4米
+            'max_height': 0.2,               # 最高高度：0.2米
             'angle_min': -3.14159,            # -180度
             'angle_max': 3.14159,             # 180度
             'angle_increment': 0.0087,        # 角度分辨率 (约0.5度)
