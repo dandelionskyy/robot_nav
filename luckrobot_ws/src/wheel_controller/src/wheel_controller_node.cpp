@@ -164,20 +164,12 @@ void signal_handler(int signum) {
         brake_frame[8] = PLACEHOLDER_BYTE;
         brake_frame[9] = crc8_maxim(brake_frame, 9);
         
-        if (g_logger != nullptr) {
-            RCLCPP_INFO(*g_logger, "发送左轮刹车指令: %s", 
-                        hex_to_string(brake_frame, FRAME_LENGTH).c_str());
-        }
         write(g_serial_fd, brake_frame, FRAME_LENGTH);
         tcdrain(g_serial_fd);
         usleep(RS485_DELAY_US);
         
         brake_frame[0] = RIGHT_WHEEL_ID;
         brake_frame[9] = crc8_maxim(brake_frame, 9);
-        if (g_logger != nullptr) {
-            RCLCPP_INFO(*g_logger, "发送右轮刹车指令: %s", 
-                        hex_to_string(brake_frame, FRAME_LENGTH).c_str());
-        }
         write(g_serial_fd, brake_frame, FRAME_LENGTH);
         tcdrain(g_serial_fd);
         
@@ -300,11 +292,6 @@ bool send_rs485_command(uint8_t motor_id, int rpm, bool brake) {
     // 增加重试机制
     for (int retry = 0; retry < RS485_CMD_RETRY; ++retry) {
         clear_serial_buffer();
-
-        if (g_logger != nullptr) {
-            RCLCPP_INFO(*g_logger, "→ 发送电机0x%02X指令(重试%d): %s (转速: %d, 刹车: %s)",
-                        motor_id, retry, hex_to_string(frame, FRAME_LENGTH).c_str(), rpm, brake ? "是" : "否");
-        }
         
         ssize_t sent = write(g_serial_fd, frame, FRAME_LENGTH);
         if (sent == FRAME_LENGTH) {
@@ -361,11 +348,6 @@ bool read_rs485_response(uint8_t motor_id, uint16_t& position, std::string& erro
         return false;
     }
 
-    if (g_logger != nullptr) {
-        RCLCPP_INFO(*g_logger, "← 电机0x%02X原始回复: %s",
-                     motor_id, hex_to_string(response, FRAME_LENGTH).c_str());
-    }
-
     if (response[0] != motor_id) {
         // 【修改】修复ID显示为十六进制
         error_msg = "ID不匹配: 收到0x" + to_hex_string(response[0]) + "（期望0x" + to_hex_string(motor_id) + "）";
@@ -380,10 +362,6 @@ bool read_rs485_response(uint8_t motor_id, uint16_t& position, std::string& erro
     }
 
     position = (static_cast<uint16_t>(response[6]) << 8) | response[7];
-    if (g_logger != nullptr) {
-        RCLCPP_INFO(*g_logger, "← 电机0x%02X回复成功: 位置=0x%04X (十进制: %d, 角度: %.2f°)",
-                     motor_id, position, position, (static_cast<double>(position)/32767.0)*360.0);
-    }
     return true;
 }
 
@@ -399,10 +377,6 @@ bool send_sensor_command(const uint8_t* cmd, int cmd_len) {
     // 增加重试机制
     for (int retry = 0; retry < SENSOR_CMD_RETRY; ++retry) {
         clear_serial_buffer();
-
-        if (g_logger != nullptr) {
-            RCLCPP_INFO(*g_logger, "→ 发送传感器指令(重试%d): %s", retry, hex_to_string(cmd, cmd_len).c_str());
-        }
         
         ssize_t sent = write(g_serial_fd, cmd, cmd_len);
         if (sent == cmd_len) {
@@ -466,11 +440,6 @@ bool read_sensor_response(uint8_t sensor_id, double& distance, bool& is_dangerou
         return false;
     }
 
-    if (g_logger != nullptr) {
-        RCLCPP_INFO(*g_logger, "← 传感器0x%02X原始回复: %s",
-                     sensor_id, hex_to_string(response, SENSOR_RESP_LEN).c_str());
-    }
-
     if (response[0] != sensor_id) {
         // 【修改】修复ID显示为十六进制
         error_msg = "传感器ID不匹配: 收到0x" + to_hex_string(response[0]) + "（期望0x" + to_hex_string(sensor_id) + "）";
@@ -492,12 +461,6 @@ bool read_sensor_response(uint8_t sensor_id, double& distance, bool& is_dangerou
     // 核心判断：35≤距离<65 → 危险（需要避障）；≥65 → 安全（无风险）
     distance = parse_sensor_distance(response[3], response[4]);
     is_dangerous = (distance >= SENSOR_MIN_DANGER) && (distance < SENSOR_MAX_DANGER);
-
-    if (g_logger != nullptr) {
-        RCLCPP_INFO(*g_logger, "← 传感器0x%02X解析成功: 原始值=0x%02X%02X | 距离=%.2fmm | 状态: %s",
-                     sensor_id, response[3], response[4], distance, 
-                     is_dangerous ? "危险（<65mm）" : "安全（≥65mm）");
-    }
 
     return true;
 }
@@ -671,10 +634,6 @@ private:
         dist_msg.data[2] = left_dangerous ? 1.0 : 0.0;
         dist_msg.data[3] = right_dangerous ? 1.0 : 0.0;
         sensor_dist_pub_->publish(dist_msg);
-
-        RCLCPP_INFO(this->get_logger(), "[sensor] === 发布传感器数据 | 左距离: %.2fmm(%s) | 右距离: %.2fmm(%s) ===",
-                     left_dist, left_dangerous ? "危险" : "安全",
-                     right_dist, right_dangerous ? "危险" : "安全");
     }
 
     // 读取传感器数据（核心修改：失败时沿用历史值）【修改】
@@ -736,8 +695,6 @@ private:
         angular_z_ = msg->angular.z;
         last_cmd_vel_time_ = this->now();
         brake_sent_ = false;
-        RCLCPP_DEBUG(this->get_logger(), "收到cmd_vel: linear.x=%.2f m/s, angular.z=%.2f rad/s",
-                     linear_x_, angular_z_);
     }
 
     void control_loop() {
@@ -798,7 +755,7 @@ private:
         publish_wheel_position(left_pos, right_pos, pub_note);
     }
 
-    void publish_wheel_position(uint16_t left_pos, uint16_t right_pos, const std::string& note) {
+    void publish_wheel_position(uint16_t left_pos, uint16_t right_pos, [[maybe_unused]] const std::string& note) {
         if (!publisher_ready_ || wheel_pos_pub_ == nullptr || !g_node_running.load()) {
             RCLCPP_WARN(this->get_logger(), "发布器未就绪或节点已停止，跳过位置发布");
             return;
@@ -813,8 +770,6 @@ private:
         pos_msg.data[0] = left_angle;
         pos_msg.data[1] = right_angle;
 
-        RCLCPP_INFO(this->get_logger(), "[position] === 发布位置 | 左轮实时: %d(%.2f°) | 右轮实时: %d(%.2f°) | 备注: %s ===",
-                     left_pos, left_angle, right_pos, right_angle, note.c_str());
         wheel_pos_pub_->publish(pos_msg);
     }
 
