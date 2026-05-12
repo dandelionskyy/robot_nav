@@ -6,6 +6,8 @@
 #include <map>
 #include <string>
 #include <cmath>
+#include <algorithm> // 用于字符串转换大小写
+#include <cctype>
 
 using NavigateToPose = nav2_msgs::action::NavigateToPose;
 using GoalHandleNav = rclcpp_action::ClientGoalHandle<NavigateToPose>;
@@ -62,7 +64,7 @@ public:
             std::bind(&NavManagerNode::voice_callback, this, std::placeholders::_1)
         );
 
-        RCLCPP_INFO(this->get_logger(), "🚀 中央调度节点启动成功！(已加载 20 个目标点预设，丝杠后置调度模式)");
+        RCLCPP_INFO(this->get_logger(), "🚀 中央调度节点启动成功！(已加载唤醒词 Lucky 拦截系统)");
     }
 
 private:
@@ -73,7 +75,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr voice_sub_;
     
     std::string current_task_name_;
-    float current_screw_height_target_; // 🔥 新增：用于暂存当前任务的丝杠目标高度
+    float current_screw_height_target_; // 用于暂存当前任务的丝杠目标高度
 
     // Yaw(偏航角弧度) 转 四元数 辅助函数
     void yaw_to_quaternion(double yaw, double& qx, double& qy, double& qz, double& qw) {
@@ -84,38 +86,50 @@ private:
 
     void voice_callback(const std_msgs::msg::String::SharedPtr msg) {
         std::string command = msg->data;
-        RCLCPP_INFO(this->get_logger(), "🗣️ 收到文本/语音指令: [%s]", command.c_str());
+        
+        // 1. 【新增逻辑】：将收到的整句话转换为小写，方便做不区分大小写的匹配
+        std::string lower_command = command;
+        std::transform(lower_command.begin(), lower_command.end(), lower_command.begin(),
+            [](unsigned char c){ return std::tolower(c); });
+
+        // 2. 【新增逻辑】：唤醒词安检！如果句子里根本没有 "lucky"，直接当没听见，退出处理
+        if (lower_command.find("lucky") == std::string::npos) {
+            // 使用 DEBUG 级别，这样平时正常说话聊天时终端不会被警告刷屏
+            RCLCPP_DEBUG(this->get_logger(), "🛑 未检测到唤醒词 'Lucky'，忽略日常对话: [%s]", command.c_str());
+            return;
+        }
+
+        // 只有带着 "Lucky" 的指令才会走到这里
+        RCLCPP_INFO(this->get_logger(), "✨ 机器人被唤醒！收到有效指令: [%s]", command.c_str());
 
         bool location_found = false;
         std::string target_name = "";
         Waypoint target_wp;
 
-        // 1. 解析目标点
+        // 3. 解析目标点
         for (const auto& location : target_locations_) {
             if (command.find(location.first) != std::string::npos) {
                 location_found = true;
                 target_name = location.first;
                 target_wp = location.second;
                 current_task_name_ = command; // 记录全句指令，后续发给VLA
-                current_screw_height_target_ = target_wp.screw_height; // 🔥 暂存目标丝杠高度，留到导航到达后再发
+                current_screw_height_target_ = target_wp.screw_height; // 暂存目标丝杠高度，留到导航到达后再发
                 break; // 匹配到一个就退出
             }
         }
 
-        // 2. 异常处理：没有匹配到目标点
+        // 4. 异常处理：有唤醒词，但没有预设地点
         if (!location_found) {
-            RCLCPP_WARN(this->get_logger(), "⚠️ 未在指令中发现已知的预设地点！小车保持原地不动。");
+            RCLCPP_WARN(this->get_logger(), "⚠️ 听到了唤醒词，但未在指令中发现已知的预设地点！小车保持原地不动。");
             return;
         }
 
-        // 3. 正常处理：匹配成功，开始下发动作
+        // 5. 正常处理：匹配成功，开始下发动作
         RCLCPP_INFO(this->get_logger(), "🎯 成功解析目标地点: [%s]", target_name.c_str());
         RCLCPP_INFO(this->get_logger(), "   - Nav2 坐标 : X=%.2f, Y=%.2f, Yaw=%.2f", target_wp.x, target_wp.y, target_wp.yaw);
         RCLCPP_INFO(this->get_logger(), "   - 待执行丝杠高度 : %.1f mm (将在导航抵达后执行)", target_wp.screw_height);
-        
-        // 🔥 此处的 screw_pub_->publish() 已被彻底移除，防止底盘移动途中升降丝杠
 
-        // 3.2 调用 Nav2 执行底盘移动
+        // 调用 Nav2 执行底盘移动
         send_nav_goal(target_wp.x, target_wp.y, target_wp.yaw);
     }
 
@@ -147,7 +161,7 @@ private:
                     case rclcpp_action::ResultCode::SUCCEEDED:
                         RCLCPP_INFO(this->get_logger(), "✅ 导航圆满到达目的地！底盘已停稳。");
                         
-                        // 🔥 核心修改：在到达终点后，才将刚才“暂存”的高度下发给丝杠
+                        // 在到达终点后，将暂存的高度下发给丝杠
                         RCLCPP_INFO(this->get_logger(), "⚙️ 开始执行丝杠升降动作，目标高度: %.1f mm", current_screw_height_target_);
                         {
                             std_msgs::msg::Float32 screw_msg;
