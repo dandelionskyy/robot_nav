@@ -96,7 +96,7 @@ def generate_launch_description():
         parameters=[{"use_sim_time": False}]
     )
 
-    # 🔥 新增：VLA 语音交互中枢节点
+    # VLA 语音交互中枢节点
     voice_cmd_node = launch_ros.actions.Node(
         package="voice_controller",
         executable="voice_cmd_node",

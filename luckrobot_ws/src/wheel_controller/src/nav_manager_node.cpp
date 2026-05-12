@@ -27,8 +27,8 @@ public:
         // 你可以通过 `ros2 topic echo /goal_pose` 在 RViz2 里点选获取真实坐标
         // ==========================================
         target_locations_["厨房桌子"]   = { 0.0,  0.0,  0., -300.0};
-        target_locations_["客厅茶几"]   = {-1.0,  3.5,  0.00, -250.0};
-        target_locations_["充电桩"]     = { 0.0,  0.0,  0.00,    0.0};
+        target_locations_["客厅茶几"]   = { 2.0,  2.0,  0.00, -450.0};
+        target_locations_["充电桩"]     = { 3.0,  3.0,  3.00,    0.0};
         target_locations_["一号货架"]   = { 5.0, -2.0, -1.57, -400.0};
         target_locations_["二号货架"]   = { 5.0, -3.0, -1.57, -462.0};
         target_locations_["废料回收站"] = {-4.0, -4.0,  3.14, -100.0};
@@ -62,7 +62,7 @@ public:
             std::bind(&NavManagerNode::voice_callback, this, std::placeholders::_1)
         );
 
-        RCLCPP_INFO(this->get_logger(), "🚀 中央调度节点启动成功！(已加载 20 个目标点预设)");
+        RCLCPP_INFO(this->get_logger(), "🚀 中央调度节点启动成功！(已加载 20 个目标点预设，丝杠后置调度模式)");
     }
 
 private:
@@ -73,6 +73,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr voice_sub_;
     
     std::string current_task_name_;
+    float current_screw_height_target_; // 🔥 新增：用于暂存当前任务的丝杠目标高度
 
     // Yaw(偏航角弧度) 转 四元数 辅助函数
     void yaw_to_quaternion(double yaw, double& qx, double& qy, double& qz, double& qw) {
@@ -96,6 +97,7 @@ private:
                 target_name = location.first;
                 target_wp = location.second;
                 current_task_name_ = command; // 记录全句指令，后续发给VLA
+                current_screw_height_target_ = target_wp.screw_height; // 🔥 暂存目标丝杠高度，留到导航到达后再发
                 break; // 匹配到一个就退出
             }
         }
@@ -109,12 +111,9 @@ private:
         // 3. 正常处理：匹配成功，开始下发动作
         RCLCPP_INFO(this->get_logger(), "🎯 成功解析目标地点: [%s]", target_name.c_str());
         RCLCPP_INFO(this->get_logger(), "   - Nav2 坐标 : X=%.2f, Y=%.2f, Yaw=%.2f", target_wp.x, target_wp.y, target_wp.yaw);
-        RCLCPP_INFO(this->get_logger(), "   - 丝杠高度 : %.1f mm", target_wp.screw_height);
+        RCLCPP_INFO(this->get_logger(), "   - 待执行丝杠高度 : %.1f mm (将在导航抵达后执行)", target_wp.screw_height);
         
-        // 3.1 同步下发丝杠动作 (底层已实现异步等待，这里安全发送)
-        std_msgs::msg::Float32 screw_msg;
-        screw_msg.data = target_wp.screw_height;
-        screw_pub_->publish(screw_msg);
+        // 🔥 此处的 screw_pub_->publish() 已被彻底移除，防止底盘移动途中升降丝杠
 
         // 3.2 调用 Nav2 执行底盘移动
         send_nav_goal(target_wp.x, target_wp.y, target_wp.yaw);
@@ -146,7 +145,16 @@ private:
             [this](const GoalHandleNav::WrappedResult & result) {
                 switch (result.code) {
                     case rclcpp_action::ResultCode::SUCCEEDED:
-                        RCLCPP_INFO(this->get_logger(), "✅ 导航圆满到达目的地！丝杠已到位！");
+                        RCLCPP_INFO(this->get_logger(), "✅ 导航圆满到达目的地！底盘已停稳。");
+                        
+                        // 🔥 核心修改：在到达终点后，才将刚才“暂存”的高度下发给丝杠
+                        RCLCPP_INFO(this->get_logger(), "⚙️ 开始执行丝杠升降动作，目标高度: %.1f mm", current_screw_height_target_);
+                        {
+                            std_msgs::msg::Float32 screw_msg;
+                            screw_msg.data = current_screw_height_target_;
+                            screw_pub_->publish(screw_msg);
+                        }
+
                         RCLCPP_INFO(this->get_logger(), "📡 正在向 10.0.0.51 (VLA节点) 下发视觉作业指令...");
                         
                         // 目标点到达，将任务需求原文发送给大模型处理
@@ -169,7 +177,7 @@ private:
             };
 
         action_client_->async_send_goal(goal_msg, send_goal_options);
-        RCLCPP_INFO(this->get_logger(), "🚙 路线已下发至 Nav2，机器人开始移动...");
+        RCLCPP_INFO(this->get_logger(), "🚙 路线已下发至 Nav2，机器人开始安全移动...");
     }
 };
 
