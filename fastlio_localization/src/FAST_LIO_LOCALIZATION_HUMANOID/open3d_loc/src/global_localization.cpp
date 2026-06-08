@@ -141,9 +141,6 @@ private:
 
     std::mutex lock_mat_odom2map_;
 
-    /// @brief baselink和运动中心
-    Eigen::Matrix4d mat_baselink2motionlink_;
-
     /// @brief imulink到baselink
     Eigen::Matrix4d mat_imulink2baselink_;
 
@@ -174,7 +171,6 @@ private:
 
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_baselink2map_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_baselink2map_kalman_;
-    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_motionlink2map_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_odom2map_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_odom2map_kalman_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_odom_loc_;
@@ -262,7 +258,6 @@ GloabalLocalization::GloabalLocalization() : Node("global_loc_node"),
 
     pub_baselink2map_ = this->create_publisher<nav_msgs::msg::Odometry>("/baselink2map", 100000);
     pub_baselink2map_kalman_ = this->create_publisher<nav_msgs::msg::Odometry>("/baselink2map_kalman", 100000);
-    pub_motionlink2map_ = this->create_publisher<nav_msgs::msg::Odometry>("/motionlink2map", 100000);
     pub_odom2map_ = this->create_publisher<nav_msgs::msg::Odometry>("/odom2map", 100000);
     pub_odom2map_kalman_ = this->create_publisher<nav_msgs::msg::Odometry>("/odom2map_kalman", 100000);
     pub_odom_loc_ = this->create_publisher<nav_msgs::msg::Odometry>("/Odometry_loc", 50);
@@ -407,12 +402,6 @@ GloabalLocalization::GloabalLocalization() : Node("global_loc_node"),
     mat_imulink2baselink_ = Eigen::Matrix4d::Identity();
     std::cout << "mat_imulink2baselink_:\n"
               << mat_imulink2baselink_ << std::endl;
-
-    //motion直接等于baselink
-    // GetTfTransformToMatrix("motion_link", "base_link", mat_baselink2motionlink_);
-    mat_baselink2motionlink_ = Eigen::Matrix4d::Identity();
-    std::cout << "mat_baselink2motionlink_:\n"
-              << mat_baselink2motionlink_ << std::endl;
 
     RCLCPP_WARN(this->get_logger(), "initialize finished");
 
@@ -571,34 +560,13 @@ void GloabalLocalization::CallbackBaselink2Odom(const nav_msgs::msg::Odometry::S
         baselink2map_kalman.header.stamp = baselink2odom->header.stamp;
         pub_baselink2map_kalman_->publish(baselink2map_kalman);
 
-        Eigen::Matrix4d mat_motionlink2map = mat_baselink2map_kalman * mat_baselink2motionlink_.inverse();
-        Eigen::Isometry3d Isometry3d_motionlink2map;
-        Isometry3d_motionlink2map.matrix() = mat_motionlink2map;
-        nav_msgs::msg::Odometry motionlink2map;
-        motionlink2map.pose.pose = tf2::toMsg(Isometry3d_motionlink2map);
-        motionlink2map.header.frame_id = "map";
-        // baselink2map_kalman.child_frame_id = "base_link_kalman";
-        motionlink2map.header.stamp = baselink2odom->header.stamp;
-        pub_motionlink2map_->publish(motionlink2map);
-
-        /// 发布tf关系
-        geometry_msgs::msg::TransformStamped transform;
-        transform.header.frame_id = "map";
-        transform.child_frame_id = "motion_link";
-        transform.header.stamp = baselink2odom->header.stamp;
-        transform.transform.translation.x = motionlink2map.pose.pose.position.x;
-        transform.transform.translation.y = motionlink2map.pose.pose.position.y;
-        transform.transform.translation.z = motionlink2map.pose.pose.position.z;
-        transform.transform.rotation = motionlink2map.pose.pose.orientation;
-        br_odom2map_->sendTransform(transform);
-
         localization_3d_confidence_.data = loc_fitness_;
         pub_localization_3d_confidence_->publish(localization_3d_confidence_);
         localization_3d_delay_ms_.data = (this->now() - baselink2odom->header.stamp).seconds() * 1000.0;
         pub_localization_3d_delay_ms_->publish(localization_3d_delay_ms_);
         localization_3d_.header.frame_id = "map";
         localization_3d_.header.stamp = baselink2odom->header.stamp;
-        localization_3d_.pose = motionlink2map.pose.pose;
+        localization_3d_.pose = baselink2map_kalman.pose.pose;
         pub_localization_3d_->publish(localization_3d_);
     }
 }
