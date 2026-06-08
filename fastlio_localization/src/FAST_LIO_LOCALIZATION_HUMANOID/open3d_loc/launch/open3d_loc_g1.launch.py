@@ -24,7 +24,7 @@ def generate_launch_description():
     ])
 
     # 地图文件路径 - 使用绝对路径指向源码目录中的地图文件
-    map_file = '/home/nvidia/luckrobot/mid360s_ws/map/test.pcd'
+    map_file = '/home/nano/luckrobot/mid360s_ws/map/test_cleaned.pcd'
 
     # 静态TF发布节点 - camera_init to odom
     static_tf_camera_init2odom = Node(
@@ -35,23 +35,27 @@ def generate_launch_description():
     )
 
     # 静态TF发布节点 - imu_link to base_link
-    # 父frame是imu_link，子frame是base_link
-    # static_tf_imulink2baselink = Node(
-    #     package='tf2_ros',
-    #     executable='static_transform_publisher',
-    #     name='imulink2baselink',
-    #     arguments=['0', '0', '0', '0', '0', '0', '1', 'imu_link', 'base_link']
-    # )
+    # 父frame是imu_link，子frame是base_link(body)
+
+    static_tf_imulink2baselink = Node(
+         package='tf2_ros',
+         executable='static_transform_publisher',
+         name='imulink2baselink',
+         arguments=['0', '0', '0', '0', '0', '0', '1', 'imu_link', 'body'] #base_link
+     )
 
     # 静态TF发布节点 - base_link to motion_link
     # base_link是父frame，motion_link是子frame
-    static_tf_base_center = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='base_center_broadcaster',
-        arguments=['0', '0', '0', '0', '0', '0',
-                   '1', 'base_link', 'motion_link']
-    )
+    
+  
+    # static_tf_base_center = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='base_center_broadcaster',
+    #     arguments=['0', '0', '0', '0', '0', '0',
+    #                '1', 'body', 'motion_link'] #base_link
+    # ) 
+ 
 
     # 全局定位节点
     global_localization_node = Node(
@@ -113,10 +117,10 @@ def generate_launch_description():
         name='pointcloud_transformer_node',
         output='screen',
         parameters=[{
-            'input_topic': '/cloud_registered_body_1',
+            'input_topic': '/cloud_registered_body',
             'output_topic': '/cloud_registered_map',
             'global_map_topic': '/global_map',
-            'source_frame': 'base_link',
+            'source_frame': 'body',
             'target_frame': 'map',
             'voxel_leaf_size': 0.1,
             'map_voxel_leaf_size': 0.2,
@@ -125,7 +129,7 @@ def generate_launch_description():
             'enable_global_map': True,
             'use_sim_time': LaunchConfiguration('use_sim_time')
         }]
-    )
+    ) #(body_1)
 
     pointcloud_to_laserscan_node = Node(
         package='pointcloud_to_laserscan',
@@ -133,7 +137,7 @@ def generate_launch_description():
         name='pointcloud_to_laserscan',
         output='screen',
         remappings=[
-            ('cloud_in', '/cloud_registered_body_1'),  # 订阅 FAST-LIO 吐出的实时畸变校正点云
+            ('cloud_in', '/cloud_registered_body'),  # 订阅 FAST-LIO 吐出的实时畸变校正点云(body_1)
             ('scan', '/scan_2d')                       # 避开原本占用的 /scan，输出全新的 2D 话题给 Nav2
         ],
         parameters=[{
@@ -154,8 +158,8 @@ def generate_launch_description():
     return LaunchDescription([
         use_sim_time_arg,
         static_tf_camera_init2odom,
-        # static_tf_imulink2baselink,
-        static_tf_base_center,
+        static_tf_imulink2baselink,
+        #static_tf_base_center,
         global_localization_node,
         # pointcloud_transformer_node #这个节点是3d导航用的 我这个项目是2d的所以注释掉且压缩为laserscan
         pointcloud_to_laserscan_node

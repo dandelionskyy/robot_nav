@@ -15,7 +15,7 @@ def generate_launch_description():
     # 获取 Launch 配置参数
     use_sim_time = launch.substitutions.LaunchConfiguration('use_sim_time', default='false')
     # 【新增】：控制是否启动 RViz 的开关，默认设置为 'False'
-    use_rviz1 = launch.substitutions.LaunchConfiguration('use_rviz1', default='False')
+    use_rviz1 = launch.substitutions.LaunchConfiguration('use_rviz1', default='True')
     
     # 读取你通过 pcd2pgm 保存的干净的 2D 栅格地图
     map_yaml_path = launch.substitutions.LaunchConfiguration(

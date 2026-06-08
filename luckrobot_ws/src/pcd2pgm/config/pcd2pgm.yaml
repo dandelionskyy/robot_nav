@@ -1,7 +1,7 @@
 pcd2pgm:
   ros__parameters:
     # 1. 绝对路径（完美匹配你 config 里的路径）
-    pcd_file: /home/nvidia/luckrobot/mid360s_ws/map/test_cleaned.pcd 
+    pcd_file: /home/nano/luckrobot/mid360s_ws/map/test_cleaned.pcd
     
     # 2. 坐标系转换（严格保持全0，FAST-LIO 的地图已经对齐了世界坐标系）
     odom_to_lidar_odom: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]      

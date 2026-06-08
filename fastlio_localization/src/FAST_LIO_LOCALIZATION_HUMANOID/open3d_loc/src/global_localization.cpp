@@ -278,15 +278,15 @@ GloabalLocalization::GloabalLocalization() : Node("global_loc_node"),
     loc_fitness_ = 0.0;
     // 注册回调函数
     sub_baselink2odom_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        "/Odometry_loc", 50, std::bind(&GloabalLocalization::CallbackBaselink2Odom, this, std::placeholders::_1));
+        "/Odometry", 50, std::bind(&GloabalLocalization::CallbackBaselink2Odom, this, std::placeholders::_1));
     sub_scan_cur_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-        "/cloud_registered_1", 50, std::bind(&GloabalLocalization::CallbackScan, this, std::placeholders::_1));
+        "/cloud_registered", 50, std::bind(&GloabalLocalization::CallbackScan, this, std::placeholders::_1));
     sub_initialpose_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
         "/initialpose", 50, std::bind(&GloabalLocalization::CallbackInitialPose, this, std::placeholders::_1));
 
     pose_baselink2odom_ = nav_msgs::msg::Odometry();
     pose_baselink2odom_.header.frame_id = "odom";
-    pose_baselink2odom_.child_frame_id = "base_link";
+    pose_baselink2odom_.child_frame_id = "body"; //base_link
     // geometry_msgs的Quaternion会被初始化为0,0,0,0,而不是正确的0,0,0,1
     pose_baselink2odom_.pose.pose.orientation.w = 1;
     RCLCPP_INFO(this->get_logger(), "pose baselink2odom:\nx: %f, y: %f, z: %f, qx: %f, \
@@ -400,11 +400,15 @@ GloabalLocalization::GloabalLocalization() : Node("global_loc_node"),
     pcd_map_fine_ = pcd_map_ori_->VoxelDownSample(voxelsize_fine_);
     pcd_map_fine_->EstimateNormals(open3d::geometry::KDTreeSearchParamHybrid(voxelsize_fine_ * 2, 30));
 
-    GetTfTransformToMatrix("base_link", "imu_link", mat_imulink2baselink_);
+    //body当作主坐标系，base_link to imu_link直接相等
+    // GetTfTransformToMatrix("base_link", "imu_link", mat_imulink2baselink_);
+    mat_imulink2baselink_ = Eigen::Matrix4d::Identity();
     std::cout << "mat_imulink2baselink_:\n"
               << mat_imulink2baselink_ << std::endl;
 
-    GetTfTransformToMatrix("motion_link", "base_link", mat_baselink2motionlink_);
+    //motion直接等于baselink
+    // GetTfTransformToMatrix("motion_link", "base_link", mat_baselink2motionlink_);
+    mat_baselink2motionlink_ = Eigen::Matrix4d::Identity();
     std::cout << "mat_baselink2motionlink_:\n"
               << mat_baselink2motionlink_ << std::endl;
 
@@ -481,7 +485,7 @@ void GloabalLocalization::CallbackBaselink2Odom(const nav_msgs::msg::Odometry::S
     nav_msgs::msg::Odometry baselink2map;
     baselink2map.pose.pose = tf2::toMsg(Isometry3d_baselink2map);
     baselink2map.header.frame_id = "map";
-    baselink2map.child_frame_id = "base_link";
+    baselink2map.child_frame_id = "body";//base_link
     baselink2map.header.stamp = baselink2odom->header.stamp;
     pub_baselink2map_->publish(baselink2map);
 
