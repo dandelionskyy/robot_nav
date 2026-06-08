@@ -5,15 +5,15 @@
 
 set -e
 
-SESSION="robot_nav"
+SESSION="luckrobot"
 MODE="${1:-auto}"
 
 # 工作空间路径 (按实际修改)
-LIVOX_WS="$HOME/robot_nav/livox_ws"
+LIVOX_WS="$HOME/luckrobot/livox_ws"
 CORRECTOR_WS="$HOME/lidar-corrector"
-MID360_WS="$HOME/robot_nav/mid360s_ws"
-LOC_WS="$HOME/robot_nav/fastlio_localization"
-LUCK_WS="$HOME/robot_nav/luckrobot_ws"
+MID360_WS="$HOME/luckrobot/mid360s_ws"
+LOC_WS="$HOME/luckrobot/fastlio_localization"
+LUCK_WS="$HOME/luckrobot/luckrobot_ws"
 
 # 如果 session 已存在，先杀掉
 tmux kill-session -t "$SESSION" 2>/dev/null || true
