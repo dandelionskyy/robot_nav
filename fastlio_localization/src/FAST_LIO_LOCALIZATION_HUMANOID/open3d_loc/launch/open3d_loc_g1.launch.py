@@ -1,5 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, SetParameter
 from launch_ros.substitutions import FindPackageShare
@@ -14,6 +15,13 @@ def generate_launch_description():
         'use_sim_time',
         default_value='false',
         description='Use simulation time'
+    )
+
+    # 声明 use_rviz 参数
+    use_rviz_arg = DeclareLaunchArgument(
+        'use_rviz',
+        default_value='false',
+        description='Whether to start RViz2 for localization visualization'
     )
 
     # 配置文件路径
@@ -147,11 +155,29 @@ def generate_launch_description():
         }]
     )
 
+    # RViz 可视化节点
+    rviz_config_path = PathJoinSubstitution([
+        open3d_loc_share,
+        'rviz_cfg',
+        'fastlio.rviz'
+    ])
+
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz_loc',
+        arguments=['-d', rviz_config_path],
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('use_rviz'))
+    )
+
     return LaunchDescription([
         use_sim_time_arg,
+        use_rviz_arg,
         static_tf_imulink2baselink,
         #static_tf_base_center,
         global_localization_node,
         # pointcloud_transformer_node #这个节点是3d导航用的 我这个项目是2d的所以注释掉且压缩为laserscan
-        pointcloud_to_laserscan_node
+        pointcloud_to_laserscan_node,
+        rviz_node
     ])
