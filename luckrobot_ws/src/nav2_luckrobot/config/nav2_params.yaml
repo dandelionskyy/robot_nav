@@ -2,7 +2,7 @@ bt_navigator:
   ros__parameters:
     use_sim_time: False
     global_frame: map
-    robot_base_frame: body #base_link
+    robot_base_frame: base_link
     odom_topic: /Odometry_loc
     bt_loop_duration: 100        # <--- 保持 100，减轻 CPU 负担
     default_server_timeout: 20
@@ -97,7 +97,7 @@ local_costmap:
       update_frequency: 5.0
       publish_frequency: 2.0
       global_frame: odom
-      robot_base_frame: body #base_link
+      robot_base_frame: base_link
       use_sim_time: False
       rolling_window: true
       width: 3
@@ -131,7 +131,7 @@ global_costmap:
       update_frequency: 2.0
       publish_frequency: 2.0
       global_frame: map
-      robot_base_frame: body #base_link
+      robot_base_frame: base_link
       use_sim_time: False
       robot_radius: 0.28         # 全局同步减小到 0.28
       resolution: 0.05
@@ -202,7 +202,7 @@ behavior_server:
     assisted_teleop:
       plugin: "nav2_behaviors/AssistedTeleop"
     global_frame: odom
-    robot_base_frame: body #base_link
+    robot_base_frame: base_link
     transform_tolerance: 0.1
     use_sim_time: False
     simulate_ahead_time: 2.0

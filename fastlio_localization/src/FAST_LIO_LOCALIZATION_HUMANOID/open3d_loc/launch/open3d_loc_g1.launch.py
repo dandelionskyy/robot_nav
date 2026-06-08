@@ -26,22 +26,14 @@ def generate_launch_description():
     # 地图文件路径 - 使用绝对路径指向源码目录中的地图文件
     map_file = '/home/nano/luckrobot/mid360s_ws/map/test_cleaned.pcd'
 
-    # 静态TF发布节点 - camera_init to odom
-    static_tf_camera_init2odom = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='camera_init2odom',
-        arguments=['0', '0', '0', '0', '0', '0', '1', 'odom', 'camera_init']
-    )
-
     # 静态TF发布节点 - imu_link to base_link
-    # 父frame是imu_link，子frame是base_link(body)
+    # 父frame是imu_link，子frame是base_link
 
     static_tf_imulink2baselink = Node(
          package='tf2_ros',
          executable='static_transform_publisher',
          name='imulink2baselink',
-         arguments=['0', '0', '0', '0', '0', '0', '1', 'imu_link', 'body'] #base_link
+         arguments=['0', '0', '0', '0', '0', '0', '1', 'imu_link', 'base_link']
      )
 
     # 静态TF发布节点 - base_link to motion_link
@@ -66,7 +58,8 @@ def generate_launch_description():
         # ====== 重映射 ======
         remappings=[
             ('/map', '/map_3d'),
-            ('/scan', '/scan_3d') 
+            ('/scan', '/scan_3d'),
+            ('/Odometry', '/Odometry_loc')
         ],
         # ===================
         parameters=[
@@ -120,7 +113,7 @@ def generate_launch_description():
             'input_topic': '/cloud_registered_body',
             'output_topic': '/cloud_registered_map',
             'global_map_topic': '/global_map',
-            'source_frame': 'body',
+            'source_frame': 'base_link',
             'target_frame': 'map',
             'voxel_leaf_size': 0.1,
             'map_voxel_leaf_size': 0.2,
@@ -141,7 +134,7 @@ def generate_launch_description():
             ('scan', '/scan_2d')                       # 避开原本占用的 /scan，输出全新的 2D 话题给 Nav2
         ],
         parameters=[{
-            'target_frame': 'body', # 统一投影到地面参考系 (如果TF树报错找不到它，可暂时改为 'body' 或 'base_link' 并调整高度)
+            'target_frame': 'base_link', # 统一投影到地面参考系
             'transform_tolerance': 0.01,
             'min_height': -0.4,                # 最低高度：-0.4米
             'max_height': 0.2,               # 最高高度：0.2米
@@ -157,7 +150,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         use_sim_time_arg,
-        static_tf_camera_init2odom,
         static_tf_imulink2baselink,
         #static_tf_base_center,
         global_localization_node,

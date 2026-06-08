@@ -177,6 +177,7 @@ private:
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_motionlink2map_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_odom2map_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_odom2map_kalman_;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_odom_loc_;
     rclcpp::Time timestamp_odom_;
     std::mutex lock_timestamp_;
 
@@ -264,6 +265,7 @@ GloabalLocalization::GloabalLocalization() : Node("global_loc_node"),
     pub_motionlink2map_ = this->create_publisher<nav_msgs::msg::Odometry>("/motionlink2map", 100000);
     pub_odom2map_ = this->create_publisher<nav_msgs::msg::Odometry>("/odom2map", 100000);
     pub_odom2map_kalman_ = this->create_publisher<nav_msgs::msg::Odometry>("/odom2map_kalman", 100000);
+    pub_odom_loc_ = this->create_publisher<nav_msgs::msg::Odometry>("/Odometry_loc", 50);
 
     // pub_map_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/map", 1);
     pub_map_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/map", rclcpp::QoS(rclcpp::KeepLast(1)).transient_local());
@@ -286,7 +288,7 @@ GloabalLocalization::GloabalLocalization() : Node("global_loc_node"),
 
     pose_baselink2odom_ = nav_msgs::msg::Odometry();
     pose_baselink2odom_.header.frame_id = "odom";
-    pose_baselink2odom_.child_frame_id = "body"; //base_link
+    pose_baselink2odom_.child_frame_id = "base_link";
     // geometry_msgs的Quaternion会被初始化为0,0,0,0,而不是正确的0,0,0,1
     pose_baselink2odom_.pose.pose.orientation.w = 1;
     RCLCPP_INFO(this->get_logger(), "pose baselink2odom:\nx: %f, y: %f, z: %f, qx: %f, \
@@ -479,13 +481,17 @@ void GloabalLocalization::CallbackBaselink2Odom(const nav_msgs::msg::Odometry::S
 
     mat_baselink2odom_ = mat_imulink2odom * mat_imulink2baselink_.inverse();
 
+    // 转发里程计给 Nav2 (/Odometry_loc)，由定位节点统一提供
+    nav_msgs::msg::Odometry odom_loc = *baselink2odom;
+    pub_odom_loc_->publish(odom_loc);
+
     Eigen::Isometry3d Isometry3d_baselink2map;
     mat_baselink2map_ = mat_odom2map_ * mat_baselink2odom_;
     Isometry3d_baselink2map.matrix() = mat_baselink2map_;
     nav_msgs::msg::Odometry baselink2map;
     baselink2map.pose.pose = tf2::toMsg(Isometry3d_baselink2map);
     baselink2map.header.frame_id = "map";
-    baselink2map.child_frame_id = "body";//base_link
+    baselink2map.child_frame_id = "base_link";
     baselink2map.header.stamp = baselink2odom->header.stamp;
     pub_baselink2map_->publish(baselink2map);
 
