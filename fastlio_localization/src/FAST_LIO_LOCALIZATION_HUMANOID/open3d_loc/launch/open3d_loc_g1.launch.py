@@ -58,8 +58,7 @@ def generate_launch_description():
         # ====== 重映射 ======
         remappings=[
             ('/map', '/map_3d'),
-            ('/scan', '/scan_3d'),
-            ('/Odometry', '/Odometry_loc')
+            ('/scan', '/scan_3d')
         ],
         # ===================
         parameters=[
