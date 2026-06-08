@@ -36,7 +36,7 @@ Visualization Manager:
         All Enabled: true
         base_link:
           Value: true
-        camera_init:
+        odom:
           Value: true
         imu_link:
           Value: true
