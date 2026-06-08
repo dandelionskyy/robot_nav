@@ -145,11 +145,11 @@ def generate_launch_description():
             'transform_tolerance': 0.01,
             'min_height': -0.4,                # 最低高度：-0.4米
             'max_height': 0.2,               # 最高高度：0.2米
-            'angle_min': -3.14159,            # -180度
-            'angle_max': 3.14159,             # 180度
+            'angle_min': -2.36,               # -135° (砍掉后方机身遮挡)
+            'angle_max': 2.36,                # +135°
             'angle_increment': 0.0087,        # 角度分辨率 (约0.5度)
             'scan_time': 0.1,                 # 10Hz
-            'range_min': 0.3,                 # 过滤掉雷达近处的车体反光盲区
+            'range_min': 0.5,                 # 过滤掉雷达近处的机身反射
             'range_max': 20.0,                # 最大探测距离
             'use_inf': True,
         }]
