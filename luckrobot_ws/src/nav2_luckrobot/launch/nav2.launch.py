@@ -14,33 +14,22 @@ def generate_launch_description():
     
     # 获取 Launch 配置参数
     use_sim_time = launch.substitutions.LaunchConfiguration('use_sim_time', default='false')
-    # 【新增】：控制是否启动 RViz 的开关，默认设置为 'False'
-    use_rviz1 = launch.substitutions.LaunchConfiguration('use_rviz1', default='True')
-    
-    # 读取你通过 pcd2pgm 保存的干净的 2D 栅格地图
+    use_rviz = launch.substitutions.LaunchConfiguration('use_rviz', default='false')
+
     map_yaml_path = launch.substitutions.LaunchConfiguration(
         'map', default=os.path.join(nav2_luckrobot_dir, 'maps', 'test_map.yaml'))
-    
+
     nav2_param_path = launch.substitutions.LaunchConfiguration(
         'params_file', default=os.path.join(nav2_luckrobot_dir, 'config', 'nav2_params.yaml'))
 
     return launch.LaunchDescription([
-        # =========================================================
-        # 0. 声明 Launch 参数，方便外部调用时修改
-        # =========================================================
-        launch.actions.DeclareLaunchArgument('use_sim_time', default_value='false',
-                                             description='Use simulation (Gazebo) clock if true'),
-        launch.actions.DeclareLaunchArgument('map', default_value=map_yaml_path,
-                                             description='Full path to map file to load'),
-        launch.actions.DeclareLaunchArgument('params_file', default_value=nav2_param_path,
-                                             description='Full path to param file to load'),
-        # 声明 use_rviz1 参数，明确告诉用户这个参数的作用
-        launch.actions.DeclareLaunchArgument('use_rviz1', default_value='False',
-                                             description='Whether to start RViz2 on the robot (default: False for headless Jetson)'),
+        launch.actions.DeclareLaunchArgument('use_sim_time', default_value='false'),
+        launch.actions.DeclareLaunchArgument('map', default_value=map_yaml_path),
+        launch.actions.DeclareLaunchArgument('params_file', default_value=nav2_param_path),
+        launch.actions.DeclareLaunchArgument('use_rviz', default_value='false',
+                                             description='Whether to start RViz2'),
 
-        # =========================================================
-        # 1. 单独启动 Map Server (提供全局 2D 代价底图)
-        # =========================================================
+        # ---- Map Server ----
         Node(
             package='nav2_map_server',
             executable='map_server',
@@ -58,19 +47,16 @@ def generate_launch_description():
                         {'node_names': ['map_server']}]
         ),
 
-        # =========================================================
-        # 2. 启动核心导航层 (完全绕过 localization_launch 和 AMCL)
-        # =========================================================
+        # ---- 核心导航层 (禁用自带定位，定位由外部 fastlio_localization 提供) ----
         launch.actions.IncludeLaunchDescription(
             PythonLaunchDescriptionSource([nav2_bringup_dir, '/launch', '/navigation_launch.py']),
             launch_arguments={
                 'use_sim_time': use_sim_time,
-                'params_file': nav2_param_path}.items(),
+                'params_file': nav2_param_path,
+                'use_localization': 'false'}.items(),   # ← 关键：禁用 AMCL
         ),
 
-        # =========================================================
-        # 3. 启动 RViz2 (带有条件判断：只有 use_rviz1:=True 时才启动)
-        # =========================================================
+        # ---- RViz ----
         Node(
             package='rviz2',
             executable='rviz2',
@@ -78,7 +64,6 @@ def generate_launch_description():
             arguments=['-d', rviz_config_dir],
             parameters=[{'use_sim_time': use_sim_time}],
             output='screen',
-            # 条件锁！如果没传 use_rviz1:=True，不会运行
-            condition=IfCondition(use_rviz1)
+            condition=IfCondition(use_rviz)
         ),
     ])
