@@ -23,7 +23,7 @@ public:
     NavManagerNode() : Node("nav_manager_node") {
 
         // 10个预设模式航点 (坐标按实际修改)
-        target_locations_["模式0"] = { 0.0,  0.0,  0.,   0 };
+        target_locations_["模式0"] = { 0.0,  0.0,  0.0,  0 };
         target_locations_["模式1"] = { 2.0,  2.0,  0.00, 1 };
         target_locations_["模式2"] = { 3.0,  3.0,  3.00, 2 };
         target_locations_["模式3"] = { 5.0, -2.0, -1.57, 3 };

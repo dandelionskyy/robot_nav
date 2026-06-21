@@ -1,90 +1,133 @@
-# 家庭服务机器人
-## 1.项目介绍🤖🤖🤖
-主控基于两台Jetson orin nano super8G，一台运行导航、控制与语音交互等，另外一台调用GPU运行VLA，通过Ros作为通讯桥梁;Cpp开发,humble版本;导航基于Mid360s;双臂基于huggingface的lerobot;PCB与CNC来源立创免费打样；代码动态更新，一直优化，直到整机所有功能稳定。
-## 2.使用说明🌟🌟🌟
-可结合本人blibli此系列视频进行操作(未更新)，视频链接：[jetson nano部署fastlio2建图加定位，A*规划导航](https://www.bilibili.com/video/BV1tbQGBkE4F?vd_source=956043e91d9fa045c1e7c746411b5102)  
-借鉴项目(现在已完成全部环境部署运行，导航完成，遥操训练正在制作，零件等全由本人DIY )：  
-- 建图算法：fast_lio2_ros2：[https://github.com/Ericsii/FAST_LIO_ROS2?tab=readme-ov-file](https://github.com/Ericsii/FAST_LIO_ROS2?tab=readme-ov-file)
-- 定位算法：FAST_LIO_LOCALIZATION_HUMANOID：[https://github.com/deepglint/FAST_LIO_LOCALIZATION_HUMANOID/tree/humble#](https://github.com/deepglint/FAST_LIO_LOCALIZATION_HUMANOID/tree/humble#)
-- 3D-2D图压缩用于Nav2:[https://github.com/LihanChen2004/pcd2pgm](https://github.com/LihanChen2004/pcd2pgm)
-- 机械臂：双臂lerobot：[https://github.com/huggingface/lerobot](https://github.com/huggingface/lerobot)  
-### 2.1 若您想部署该项目的导航部分，请先确保源项目网址分步部署成功⚠️⚠️⚠️
-- **livox_ws为mid360s的ros2驱动文件;**  
-- **mid360s_ws为fastlio2的建图文件；**  
-- **fastlio_localization为open3d定位文件；**  
-- **luckrobot_ws为底盘驱动、部分tf链条与Nav2导航文件等**   
+# 家庭服务机器人 — 导航系统
 
-### 2.2 该代码仓库相对于源克隆网址做了代码修改，以下是本人部署步骤，可作为您的参考：
-- 首先确定您的mid360s的sdk安装没问题，在ros2的rviz2下能正常可视化到3d点云，注意MID360s_config.json配置的旋转平移矩阵。对应该项目的livox_ws文件夹
-- 确定您的mid360s部署fast_lio2建图没问题，注意config下的mid360.yaml的配置，理解每一项；该launch启动文件包的名称我做了修改：ros2 launch fast_lio_map mapping.launch.py，否则会和fastlio_localization下的fastlio有一定的命名冲突。对应该项目的mid360s_ws文件夹
-- 紧接着部署FAST_LIO_LOCALIZATION_HUMANOID，open3d启动会消耗较大的cpu资源，除部署阶段不建议开启rviz。对应该项目的fastlio_localization文件夹：其子文件夹FAST_LIO与建图文件基本保持一致，注意对比config下的配置文件区别；open3d_loc下的global_localization.cpp文件我也做了优化修改，您可自行对比，重点注意launch下的两个文件的配置内容，我做了部分修改，其中open3d_loc_go1.launch文件我重点修改了open3d的点云采样配置，降低采样配置更好地适配jetson的性能  
-- **🚀🚀🚀以上即可实现地图定位功能，如果仍出现cpu资源紧张，可调节dds配置，配置文件:fastdds_shm.xml,并添加下面两句配置命令于~/.bashrc，记得source**  
-**export RMW_IMPLEMENTATION=rmw_fastrtps_cpp**  
-**export FASTRTPS_DEFAULT_PROFILES_FILE=/home/你的用户名/文件路径/luckrobot/fastdds_shm.xml**
-- 在部署上述项目阶段，注意tf链条完整与各项数据输出正确。然后我们将3d点云图体素滤波等，可参考luckrobot_ws/src/map_clear文件。后部署3D-2D图压缩项目，对应文件luckrobot_ws/src/pcd2pgm，注意理解config下的配置文件各项（我的仓库该config中有解释），注意您的压缩高度范围，需要和后续的导航点云高度提取范围保持一致
-- 在导航之前运行sudo apt install ros-${ROS_DISTRO}-pointcloud-to-laserscan，这个功能包可以将你的所选高度范围的3d点云投影压缩为2d，另外还需要做一些重映射，防止话题冲突，这部分代码都在open3d的open3d_loc_g1.launch.py下有介绍
-- luckrobot_ws下为本人开发的cpp包。keyboard_control为键盘控制，发布cmdvel控制小车移动建图；robot_display主要为机器人的静态tf发布；wheel_controller为控制小车底盘、丝杠、语音指令与动态tf发布节点；nav2三个文件夹分别为控制器、规划器和nav2的配置三个文件夹，可结合鱼香ros的自定义规划控制算法进行理解这几个包；luckrobot_launch1为一键启动该机器人导航定位等功能的包
-### 2.3 Node Graph与TF tree
-**以下为运行：ros2 launch luckrobot_launch1 luckrobot_bringup.launch.py 生成的节点关系图与tf链条图**
-<div align="center">
-<img src="image/rosgraph.png" width=90% />
-</div>
-<div align="center">
-<img src="image/tftree.png" width=90% />
-</div>
+基于 ROS 2 Humble + Mid-360 激光雷达的 3D 建图定位 + 2D 导航。
 
-**tftree中：body和imu_link重合，都为雷达imu坐标系**
+## 项目来源
 
-## 3.算法核心🤔🤔🤔
-### 3.1 建图算法：FAST-LIO 2.0 (2021-07-05 Update)
-<div align="left">
-<img src="image/real_experiment2.gif" width=49.6% />
-<img src="image/ulhkwh_fastlio.gif" width = 49.6% >
-</div>
+| 上游项目 | 用途 | 本仓库对应目录 |
+|---------|------|-------------|
+| [Livox-SDK2](https://github.com/Livox-SDK/Livox-SDK2) + [livox_ros_driver2](https://github.com/Livox-SDK/livox_ros_driver2) | Mid-360 雷达驱动 | `livox_ws/` |
+| [FAST_LIO_ROS2](https://github.com/Ericsii/FAST_LIO_ROS2) | 里程计/建图 | `mid360s_ws/` |
+| [FAST_LIO_LOCALIZATION_HUMANOID](https://github.com/deepglint/FAST_LIO_LOCALIZATION_HUMANOID) | Open3D 全局定位 | `fastlio_localization/` |
+| Nav2 自定义规划器/控制器 + 底盘调度 | 自研 | `luckrobot_ws/` |
 
-**相关视频:**  [FAST-LIO2](https://youtu.be/2OvjGnxszf8),  [FAST-LIO1](https://youtu.be/iYCY6T79oNU)
+## 相比上游的改动
 
-**流程:**
-<div align="center">
-<img src="image/overview_fastlio2.svg" width=99% />
-</div>
+### FAST-LIO (`mid360s_ws`)
 
-**新功能:**
-1. 利用[ikd-Tree](https://github.com/hku-mars/ikd-Tree)进行增量映射，实现更快的速度和超过 100Hz 的激光雷达速率。
-2. 对原始激光雷达点进行直接里程测量（扫描到地图）（可禁用特征提取），实现更高精度。
-3. 由于无需特征提取，FAST-LIO2 支持多种类型的激光雷达，包括旋转激光雷达（Velodyne、Ouster）和固态激光雷达（Livox Avia、Horizon、MID-70），并且可以轻松扩展以支持更多激光雷达。
-4. 支持外部IMU。
-5. 支持基于ARM的平台，如Khadas VIM3、Nivida TX2、Raspberry Pi 4B（8G RAM）。
-### 3.2 定位算法：FAST_LIO_LOCALIZATION_HUMANOID
-**流程:**
-<div align="center">
-<img src="image/loc.png" width=90% />
-</div>
+- **雷达话题改为直连 Livox 驱动**：`lid_topic: /livox/lidar`，`imu_topic: /livox/imu`
+- **限制视场角**：`blind=0.8`, `fov_degree=270`，过滤机身遮挡
+- **launch 默认关闭 rviz**：`rviz:=false`
 
-**基于离线点云地图的稳健本地化**  
-此解决方案能够处理**粗略的初始姿态** ，支持**稳健的定位** ，并且离线点云地图保证不会因长时间工作而**累积的定位误差**（不同于常见的 SLAM）。彩色点云的可视化效果更好。
-<div align="center">
-<img src="image/loc.gif" width=30% />
-<img src="image/GO2-1.gif" width=53% />
-</div>
+### 全局定位 (`fastlio_localization`)
 
-### 3.3图压缩&Nav2
-**基于 ROS2 和 PCL 库，用于将 `.pcd` 点云文件转换为用于 Navigation 的 `pgm` 栅格地图**
+- **定位节点内部转发 `/Odometry_loc`**：订阅 FAST-LIO 的 `/Odometry`，原样转发为 `/Odometry_loc` 供 Nav2 做速度源
+- **发布 TF `map→odom`**：ICP 配准修正矩阵通过 TF 广播，不再单独发 `/motionlink2map`
+- **重映射话题**：`/map→/map_3d`，`/scan→/scan_3d`，避免与 Nav2 冲突
+- **Open3D 点云采样优化**：降低体素分辨率、限制参与配准的点数，适配 Jetson Nano 性能
+- **pointcloud_to_laserscan**：将 3D 点云压成 `/scan_2d`，范围 ±135°，高度 -0.4~0.2m，过滤机身
+- **TF 树重构**：`map → odom → base_link`，去掉了 motion_link 中间层
 
-|pcd|pgm|
-|:-:|:-:|
-|![pcd](image/pcd.png)|![pgm](image/pgm.png)|
-## 4.安装依赖与编译项目
+### Nav2 导航 (`luckrobot_ws`)
 
-## 5.实物图片📸 📸 
-- 实物(仍在完善优化)  
+- **自定义 A\* 全局规划器** (`nav2_custom_planner`)：六边形网格搜索 + 安全代价惩罚 + 转向惩罚 + 视线平滑
+- **自定义纯追踪控制器** (`nav2_custom_controller`)：原地旋转/直行双模式，双层角度阈值
+- **`nav_manager_node`**：订阅 `/cmd_mode` (UInt8) 触发对应航点，到达后发布 `/cmd_vel_mode`
+- Nav2 参数适配：`robot_radius=0.28`，`odom_topic=/Odometry_loc`，代价地图膨胀参数等
 
-  <img src="image/图片标注1.jpg" width=45% />
-  <img src="image/图片标注2.jpg" width=45% /> 
-   
-  <img src="image/正面.jpg" width=45% />
-  <img src="image/背面.jpg" width=45% />
+## 部署
 
-## 6.📩作者
-- [Luckme921](https://github.com/Luckme921)
-- **邮箱**：1814313359@qq.com
+### 1. 系统依赖
+
+```bash
+sudo apt install ros-humble-nav2-bringup ros-humble-pointcloud-to-laserscan
+```
+
+Livox SDK2 需要按[官方文档](https://github.com/Livox-SDK/Livox-SDK2)编译安装。
+
+### 2. 环境变量 (`~/.bashrc`)
+
+```bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export FASTRTPS_DEFAULT_PROFILES_FILE=/home/$USER/robot_nav/fastdds_shm.xml
+```
+
+### 3. 编译
+
+```bash
+cd ~/robot_nav
+cd livox_ws && colcon build --symlink-install && cd ..
+cd mid360s_ws && colcon build --symlink-install && cd ..
+cd fastlio_localization && colcon build --symlink-install && cd ..
+cd luckrobot_ws && colcon build --symlink-install && cd ..
+```
+
+### 4. 必改配置
+
+| 文件 | 参数 | 说明 |
+|------|------|------|
+| `open3d_loc_g1.launch.py` | `map_file` | 指向你的 `.pcd` 地图文件 |
+| `mid360.yaml` | `map_file_path` | 同上 |
+| `mid360.yaml` | `extrinsic_T` | IMU-LiDAR 外参 |
+| `nav_manager_node.cpp` | `target_locations_` | 航点坐标表 |
+
+## 启动
+
+### 一键启动
+
+```bash
+./start_nav.sh         # 完整模式：雷达→里程计→定位→Nav2+航点
+./start_nav.sh manual  # 手动模式：仅启动到 Nav2，Rviz 点目标
+./stop_nav.sh          # 停止
+```
+
+### 分步启动 (调试)
+
+```bash
+# 1. 雷达
+source livox_ws/install/setup.bash
+ros2 launch livox_ros_driver2 msg_MID360s_launch.py
+
+# 2. 里程计
+source mid360s_ws/install/setup.bash
+ros2 launch fast_lio_map mapping.launch.py rviz:=false
+
+# 3. 定位 (等待打印 "localization initialize success!!!!")
+source fastlio_localization/install/setup.bash
+ros2 launch open3d_loc open3d_loc_g1.launch.py use_rviz:=false
+
+# 4. Nav2
+source luckrobot_ws/install/setup.bash
+ros2 launch nav2_luckrobot nav2.launch.py
+
+# 5. (可选) 航点调度
+ros2 run wheel_controller nav_manager_node
+ros2 topic pub /cmd_mode std_msgs/msg/UInt8 "data: 2"
+```
+
+## 数据流
+
+```
+Livox ─→ FAST-LIO ─→ Localization ─→ Nav2
+ 点云      /Odometry    TF: map→odom    导航/控制
+          TF: odom→     /Odometry_loc
+              base_link  /scan_2d
+```
+
+TF 树：`map → odom → base_link`
+
+| TF 边 | 发布者 |
+|-------|--------|
+| `odom→base_link` | FAST-LIO (里程计, 10Hz) |
+| `map→odom` | 定位节点 (ICP 修正, 2Hz) |
+
+## 调试
+
+```bash
+ros2 topic hz /Odometry           # FAST-LIO 是否正常
+ros2 topic hz /Odometry_loc       # 定位转发是否正常
+ros2 topic hz /scan_2d            # 2D 扫描是否有输出
+ros2 run tf2_tools view_frames    # TF 树是否完整 (map→odom→base_link)
+```
+
+动一下就飘 = `map→odom` TF 没发布 → 用 Rviz 给初始位姿，或检查 `.pcd` 地图路径是否正确。
