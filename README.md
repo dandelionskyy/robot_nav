@@ -18,6 +18,7 @@
 - **雷达话题改为直连 Livox 驱动**：`lid_topic: /livox/lidar`，`imu_topic: /livox/imu`
 - **限制视场角**：`blind=0.8`, `fov_degree=270`，过滤机身遮挡
 - **launch 默认关闭 rviz**：`rviz:=false`
+- **支持雷达倒置**：倒装时将 `extrinsic_R` 改为绕X轴180°: `[1,0,0, 0,-1,0, 0,0,-1]`
 
 ### 全局定位 (`fastlio_localization`)
 
@@ -69,6 +70,7 @@ cd luckrobot_ws && colcon build --symlink-install && cd ..
 | `open3d_loc_g1.launch.py` | `map_file` | 指向你的 `.pcd` 地图文件 |
 | `mid360.yaml` | `map_file_path` | 同上 |
 | `mid360.yaml` | `extrinsic_T` | IMU-LiDAR 外参 |
+| `mid360.yaml` | `extrinsic_R` | 雷达正装用单位阵，**倒装绕X轴180°**: `[1,0,0, 0,-1,0, 0,0,-1]` |
 | `nav_manager_node.cpp` | `target_locations_` | 航点坐标表 |
 
 ## 启动
@@ -88,9 +90,11 @@ cd luckrobot_ws && colcon build --symlink-install && cd ..
 source livox_ws/install/setup.bash
 ros2 launch livox_ros_driver2 msg_MID360s_launch.py
 
-# 2. 里程计
+# 2. 里程计 (正装雷达)
 source mid360s_ws/install/setup.bash
 ros2 launch fast_lio_map mapping.launch.py rviz:=false
+# 雷达倒装时用: config_file:=mid360_inverted.yaml
+# 建图完成后保存: ros2 service call /map_save std_srvs/srv/Trigger
 
 # 3. 定位 (等待打印 "localization initialize success!!!!")
 source fastlio_localization/install/setup.bash
