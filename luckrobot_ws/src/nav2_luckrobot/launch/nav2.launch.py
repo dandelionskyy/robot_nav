@@ -14,10 +14,10 @@ def generate_launch_description():
     
     # 获取 Launch 配置参数
     use_sim_time = launch.substitutions.LaunchConfiguration('use_sim_time', default='false')
-    use_rviz = launch.substitutions.LaunchConfiguration('use_rviz', default='false')
+    use_rviz = launch.substitutions.LaunchConfiguration('use_rviz', default='true')
 
     map_yaml_path = launch.substitutions.LaunchConfiguration(
-        'map', default=os.path.join(nav2_luckrobot_dir, 'maps', 'test_map.yaml'))
+        'map', default=os.path.join(nav2_luckrobot_dir, 'maps', 'test.yaml'))
 
     nav2_param_path = launch.substitutions.LaunchConfiguration(
         'params_file', default=os.path.join(nav2_luckrobot_dir, 'config', 'nav2_params.yaml'))
@@ -26,7 +26,7 @@ def generate_launch_description():
         launch.actions.DeclareLaunchArgument('use_sim_time', default_value='false'),
         launch.actions.DeclareLaunchArgument('map', default_value=map_yaml_path),
         launch.actions.DeclareLaunchArgument('params_file', default_value=nav2_param_path),
-        launch.actions.DeclareLaunchArgument('use_rviz', default_value='false',
+        launch.actions.DeclareLaunchArgument('use_rviz', default_value='true',
                                              description='Whether to start RViz2'),
 
         # ---- Map Server ----

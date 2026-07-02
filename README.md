@@ -31,7 +31,7 @@
 
 ### Nav2 导航 (`luckrobot_ws`)
 
-- **自定义 A\* 全局规划器** (`nav2_custom_planner`)：六边形网格搜索 + 安全代价惩罚 + 转向惩罚 + 视线平滑
+- **自定义直线全局规划器** (`nav2_custom_planner`)：忽略障碍物，start→goal 直线几何路径采样，用于任务穿越模式
 - **自定义纯追踪控制器** (`nav2_custom_controller`)：原地旋转/直行双模式，双层角度阈值
 - **`nav_manager_node`**：订阅 `/cmd_mode` (UInt8) 触发对应航点，到达后发布 `/cmd_vel_mode`
 - Nav2 参数适配：`robot_radius=0.28`，`odom_topic=/Odometry_loc`，代价地图膨胀参数等
@@ -96,7 +96,7 @@ ros2 launch fast_lio_map mapping.launch.py rviz:=false
 # 雷达倒装时用: config_file:=mid360_inverted.yaml
 # 建图完成后保存: ros2 service call /map_save std_srvs/srv/Trigger
 
-# 3. 定位 (等待打印 "localization initialize success!!!!")
+# 3. 定位 (等待打印 "localizatiaon initialize success!!!!")
 source fastlio_localization/install/setup.bash
 ros2 launch open3d_loc open3d_loc_g1.launch.py use_rviz:=false
 
@@ -135,3 +135,31 @@ ros2 run tf2_tools view_frames    # TF 树是否完整 (map→odom→base_link)
 ```
 
 动一下就飘 = `map→odom` TF 没发布 → 用 Rviz 给初始位姿，或检查 `.pcd` 地图路径是否正确。
+
+## 航点录制
+
+录制固定路线航点，用于回放或 nav_manager_node 编排。
+
+```bash
+# 确保导航已启动，机器人就位
+python3 scripts/record_waypoints.py --output ~/waypoints.yaml
+```
+
+| 按键 | 功能 |
+|------|------|
+| **回车** | 记录当前位置 (map→base_link) |
+| **d + 回车** | 删除上一个航点 |
+| **q + 回车** | 保存并退出 |
+| **Ctrl+C** | 保存并退出 |
+
+输出为 YAML 格式，每个航点包含 `position`、`orientation` (四元数) 和 `yaw`。
+
+### PGM 地图角度校准
+
+如果 PGM 地图与真实环境存在固定角度偏差（走一段后偏差越来越大），调整 pcd2pgm 的 yaw 参数：
+
+1. 编辑 `/home/dandelion/Point cloud processing/pcd2pgm/src/config/pcd2pgm.yaml`
+2. 修改 `odom_to_lidar_odom[5]` (Z 轴旋转角，单位弧度)
+   - 增大 → PGM 逆时针旋转
+   - 减小 → PGM 顺时针旋转
+3. 重新运行 `pcd2pgm` 生成新 PGM 并替换到 `nav2_luckrobot/maps/`

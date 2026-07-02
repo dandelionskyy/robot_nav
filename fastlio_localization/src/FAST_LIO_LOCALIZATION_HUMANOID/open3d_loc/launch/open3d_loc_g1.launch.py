@@ -32,7 +32,7 @@ def generate_launch_description():
     ])
 
     # 地图文件路径 - 使用绝对路径指向源码目录中的地图文件
-    map_file = '/home/nano/luckrobot/mid360s_ws/map/test_cleaned.pcd'
+    map_file = '/home/dandelion/robot_nav/mid360s_ws/map/test.pcd'
 
     # 静态TF发布节点 - imu_link to base_link
     # 父frame是imu_link，子frame是base_link
@@ -91,16 +91,16 @@ def generate_launch_description():
                 # 'use_sim_time': LaunchConfiguration('use_sim_time')
                 'path_map': map_file,
                 'pcd_queue_maxsize': 10,
-                'voxelsize_coarse': 0.02,# 增大粗配准体素大小，大幅降低初始匹配时的 CPU 计算量
-                'voxelsize_fine': 0.3,# 增大精配准体素大小，0.3对室内全局定位
+                'voxelsize_coarse': 0.05,# 增大粗配准体素大小，大幅降低初始匹配时的 CPU 计算量
+                'voxelsize_fine': 0.1,# 增大精配准体素大小，0.3对室内全局定位
                 'threshold_fitness': 0.5,
                 'threshold_fitness_init': 0.5,
-                'loc_frequence': 2.0,# 将定位频率从2.5Hz降至2.0Hz，降低 CPU 调度频率
+                'loc_frequence': 5.0,# 将定位频率从2.5Hz降至2.0Hz，降低 CPU 调度频率
                 'save_scan': False,
                 'hidden_removal': False,
                 'maxpoints_source': 80000,
                 'maxpoints_target': 300000,# 限制目标点云(地图)参与配准的最大点数，极大降低 CPU 匹配负担
-                'filter_odom2map': False,
+                'filter_odom2map': True,
                 'kalman_processVar2': 0.001,
                 'kalman_estimatedMeasVar2': 0.02,
                 'confidence_loc_th': 0.7,

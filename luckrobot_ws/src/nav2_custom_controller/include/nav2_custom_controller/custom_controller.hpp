@@ -39,9 +39,8 @@ protected:
   
   double max_angular_speed_;
   double max_linear_speed_;
-  double lookahead_dist_; 
-
-  bool is_rotating_ = false;
+  double max_lateral_speed_;
+  double lookahead_dist_;
 
   geometry_msgs::msg::PoseStamped
   getNearestTargetPose(const geometry_msgs::msg::PoseStamped &current_pose);

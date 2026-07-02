@@ -27,7 +27,9 @@ tmux send-keys -t "$SESSION:info" "echo '窗口2: fastlio (里程计)'"
 tmux send-keys -t "$SESSION:info" Enter
 tmux send-keys -t "$SESSION:info" "echo '窗口3: localization (全局定位)'"
 tmux send-keys -t "$SESSION:info" Enter
-tmux send-keys -t "$SESSION:info" "echo '窗口4: nav (导航/航点)'"
+tmux send-keys -t "$SESSION:info" "echo '窗口4: nav (导航)'"
+tmux send-keys -t "$SESSION:info" Enter
+tmux send-keys -t "$SESSION:info" "echo '窗口5: waypoint (航点调度)'"
 tmux send-keys -t "$SESSION:info" Enter
 tmux send-keys -t "$SESSION:info" "echo ''"
 tmux send-keys -t "$SESSION:info" "echo '按 Ctrl+B 再按数字键切换窗口'"
@@ -58,18 +60,25 @@ tmux send-keys -t "$SESSION:localization" Enter
 tmux send-keys -t "$SESSION:localization" "source $LOC_WS/install/setup.bash && ros2 launch open3d_loc open3d_loc_g1.launch.py use_rviz:=false"
 tmux send-keys -t "$SESSION:localization" Enter
 
-# ---- 窗口4: 导航 (T+15s) ----
+# ---- 窗口4: Nav2 导航 (T+25s, 确保定位完全初始化) ----
 tmux new-window -t "$SESSION" -n "nav"
-tmux send-keys -t "$SESSION:nav" "echo '>>> 启动导航 (等15秒) <<<'"
+tmux send-keys -t "$SESSION:nav" "echo '>>> 启动 Nav2 导航 (等25秒) <<<'"
 tmux send-keys -t "$SESSION:nav" Enter
-tmux send-keys -t "$SESSION:nav" "sleep 15"
+tmux send-keys -t "$SESSION:nav" "sleep 25"
 tmux send-keys -t "$SESSION:nav" Enter
-if [ "$MODE" = "manual" ]; then
-    tmux send-keys -t "$SESSION:nav" "source $LUCK_WS/install/setup.bash && ros2 launch nav2_luckrobot nav2.launch.py"
-else
-    tmux send-keys -t "$SESSION:nav" "source $LUCK_WS/install/setup.bash && ros2 launch nav2_luckrobot nav2.launch.py && ros2 run wheel_controller nav_manager_node"
+tmux send-keys -t "$SESSION:nav" "source $LUCK_WS/install/setup.bash && ros2 launch nav2_luckrobot nav2.launch.py"
+tmux send-keys -t "$SESSION:nav" Enter
+
+# ---- 窗口5: 航点调度 (T+30s, 等 Nav2 完全就绪) ----
+if [ "$MODE" != "manual" ]; then
+    tmux new-window -t "$SESSION" -n "waypoint"
+    tmux send-keys -t "$SESSION:waypoint" "echo '>>> 启动航点调度节点 (等30秒) <<<'"
+    tmux send-keys -t "$SESSION:waypoint" Enter
+    tmux send-keys -t "$SESSION:waypoint" "sleep 30"
+    tmux send-keys -t "$SESSION:waypoint" Enter
+    tmux send-keys -t "$SESSION:waypoint" "source $LUCK_WS/install/setup.bash && ros2 run wheel_controller nav_manager_node"
+    tmux send-keys -t "$SESSION:waypoint" Enter
 fi
-tmux send-keys -t "$SESSION:nav" Enter
 
 # 切回 info 窗口并 attach
 tmux select-window -t "$SESSION:info"

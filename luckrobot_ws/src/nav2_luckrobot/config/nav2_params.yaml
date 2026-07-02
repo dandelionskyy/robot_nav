@@ -83,11 +83,12 @@ controller_server:
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.20    # 放宽到 20 厘米。进入目标圈内就算到达
-      yaw_goal_tolerance: 0.20   # 误差在 11.5 度以内就算到达
+      xy_goal_tolerance: 0.10    # 10cm，手持抖动友好
+      yaw_goal_tolerance: 0.30   # 17°，更容易对齐
     FollowPath:
       plugin: "nav2_custom_controller::CustomController"
       max_linear_speed: 0.10
+      max_lateral_speed: 0.10
       max_angular_speed: 0.70    # 强制限制最大角速度，抑制超调
       lookahead_dist: 0.80       # 前视距离拉大，无视微小偏移
 
@@ -231,8 +232,8 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.26, 0.0, 1.0]
-    min_velocity: [-0.01, 0.0, -1.0]
+    max_velocity: [0.26, 0.26, 1.0]
+    min_velocity: [-0.01, -0.26, -1.0]
     max_accel: [2.5, 0.0, 3.2]
     max_decel: [-2.5, 0.0, -3.2]
     odom_topic: "/Odometry_loc"  
