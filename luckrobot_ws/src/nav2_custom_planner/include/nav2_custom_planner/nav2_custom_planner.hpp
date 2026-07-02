@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <queue>
 
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
@@ -16,21 +15,6 @@
 #include "nav_msgs/msg/path.hpp"
 
 namespace nav2_custom_planner {
-
-struct AStarNode {
-  unsigned int x, y;
-  double g_cost, h_cost, f_cost; 
-  std::shared_ptr<AStarNode> parent; 
-
-  AStarNode(unsigned int x, unsigned int y, double g, double h, std::shared_ptr<AStarNode> p = nullptr)
-      : x(x), y(y), g_cost(g), h_cost(h), f_cost(g + h), parent(p) {}
-};
-
-struct CompareNode {
-  bool operator()(const std::shared_ptr<AStarNode>& a, const std::shared_ptr<AStarNode>& b) const {
-    return a->f_cost > b->f_cost;
-  }
-};
 
 class CustomPlanner : public nav2_core::GlobalPlanner {
 public:
@@ -53,16 +37,6 @@ private:
   nav2_costmap_2d::Costmap2D *costmap_;
   std::string global_frame_, name_;
   double interpolation_resolution_;
-
-  double getHeuristic(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
-  
-  bool isNodeValid(unsigned int x, unsigned int y);
-  
-  // 【修改点】：新增严苛判断，用于防止切内角
-  bool isSightValid(unsigned int x, unsigned int y); 
-  
-  std::vector<std::pair<int, int>> getHexNeighbors(unsigned int y);
-  bool hasLineOfSight(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
 };
 
 } // namespace nav2_custom_planner
