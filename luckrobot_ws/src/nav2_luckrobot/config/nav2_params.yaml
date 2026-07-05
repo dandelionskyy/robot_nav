@@ -68,7 +68,7 @@ controller_server:
   ros__parameters:
     use_sim_time: False
     controller_frequency: 10.0   # <--- 保持 10.0，防止掉帧
-    min_x_velocity_threshold: 0.001
+    min_x_velocity_threshold: 0.02   # 足式机器人振动容差，避免误判运动
     min_y_velocity_threshold: 0.5
     min_theta_velocity_threshold: 0.001
     failure_tolerance: 0.3
@@ -81,14 +81,13 @@ controller_server:
       required_movement_radius: 0.05   # <--- 修改：只要移动 5cm 就算有进度
       movement_time_allowance: 45.0    # <--- 修改：给足 45 秒原地旋转对准的时间，杜绝轻易超时报错
     general_goal_checker:
-      stateful: True
+      stateful: True             # 需要连续若干控制周期满足，避免瞬间误判
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.10    # 10cm，手持抖动友好
-      yaw_goal_tolerance: 0.30   # 17°，更容易对齐
+      xy_goal_tolerance: 0.25    # 25cm，足式机器人放宽到达判定
+      yaw_goal_tolerance: 0.60   # ~34°，大幅放宽朝向要求
     FollowPath:
       plugin: "nav2_custom_controller::CustomController"
       max_linear_speed: 0.10
-      max_lateral_speed: 0.10
       max_angular_speed: 0.70    # 强制限制最大角速度，抑制超调
       lookahead_dist: 0.80       # 前视距离拉大，无视微小偏移
 
@@ -232,10 +231,10 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.26, 0.26, 1.0]
-    min_velocity: [-0.01, -0.26, -1.0]
-    max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-2.5, 0.0, -3.2]
+    max_velocity: [0.10, 0.0, 0.70]      # 匹配控制器限幅；Vy=0 无横向
+    min_velocity: [-0.01, 0.0, -0.70]    # 匹配控制器限幅；Vy=0 无横向
+    max_accel: [0.35, 0.0, 1.0]           # 足式机器人平滑加速 (~0.29s 到全速)
+    max_decel: [-0.35, 0.0, -1.0]         # 足式机器人平滑减速
     odom_topic: "/Odometry_loc"  
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]

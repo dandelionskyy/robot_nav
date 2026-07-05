@@ -39,12 +39,12 @@ protected:
   
   double max_angular_speed_;
   double max_linear_speed_;
-  double max_lateral_speed_;
   double lookahead_dist_;
+
+  bool in_final_approach_{false};  // 终点领域迟滞状态
 
   geometry_msgs::msg::PoseStamped
   getNearestTargetPose(const geometry_msgs::msg::PoseStamped &current_pose);
-  double calculateAngleDifference(const geometry_msgs::msg::PoseStamped &current_pose, const geometry_msgs::msg::PoseStamped &target_pose);
   double calculateAngleDifference(const geometry_msgs::msg::PoseStamped &current_pose, double target_angle);
 };
 
