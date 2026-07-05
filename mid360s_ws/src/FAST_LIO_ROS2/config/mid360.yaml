@@ -7,7 +7,7 @@
         filter_size_map: 0.5
         cube_side_length: 1000.0
         runtime_pos_log_enable: false
-        map_file_path: "/home/dandelion/robot_nav/mid360s_ws/map/test.pcd"
+        map_file_path: "/home/g308dog/robot_nav/mid360s_ws/map/test.pcd"
 
         common:
             lid_topic:  "/livox/lidar" #/livox/lidar

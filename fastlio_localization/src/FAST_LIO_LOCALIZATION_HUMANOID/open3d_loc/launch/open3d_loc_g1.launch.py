@@ -32,7 +32,7 @@ def generate_launch_description():
     ])
 
     # 地图文件路径 - 使用绝对路径指向源码目录中的地图文件
-    map_file = '/home/dandelion/robot_nav/mid360s_ws/map/test.pcd'
+    map_file = '/home/g308dog/robot_nav/mid360s_ws/map/test.pcd'
 
     # 静态TF发布节点 - imu_link to base_link
     # 父frame是imu_link，子frame是base_link
